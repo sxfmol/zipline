@@ -163,22 +163,19 @@ class AlgorithmSimulator(object):
                 elif action == CALC_DAILY_PERFORMANCE:
                     yield self.get_daily_message(dt, algo, perf_tracker)
                 elif action == CALC_MINUTE_PERFORMANCE:
-                    minute, daily = self.get_minute_message(
-                        dt, algo, perf_tracker)
-                    if daily:
-                        yield daily
+                    yield self.get_minute_message(dt, algo, perf_tracker)
 
         risk_message = perf_tracker.handle_simulation_end()
         yield risk_message
 
     @staticmethod
-    def get_daily_message(algo, perf_tracker):
+    def get_daily_message(dt, algo, perf_tracker):
         """
         Get a perf message for the given datetime.
         """
         rvars = algo.recorded_vars
         perf_message = \
-            perf_tracker.handle_market_close_daily()
+            perf_tracker.handle_market_close_daily(dt)
         perf_message['daily_perf']['recorded_vars'] = rvars
         return perf_message
 
@@ -188,8 +185,9 @@ class AlgorithmSimulator(object):
         Get a perf message for the given datetime.
         """
         rvars = algo.recorded_vars
-        minute_message, daily_message = perf_tracker.handle_minute_close(dt)
-        minute_message['minute_perf']['recorded_vars'] = rvars
-        if daily_message:
-            daily_message['daily_perf']['recorded_vars'] = rvars
-        return minute_message, daily_message
+        perf_tracker.handle_minute_close(dt)
+        perf_message = perf_tracker.to_dict()
+        perf_message['minute_perf']['recorded_vars'] = rvars
+        return perf_message
+
+

@@ -13,6 +13,9 @@ class BenchmarkSource(object):
         self.data_portal = data_portal
 
         if self.benchmark_sid:
+            self.benchmark_asset = self.env.asset_finder.retrieve_asset(
+                self.benchmark_sid)
+
             self._validate_benchmark()
 
         self.precalculated_series = \
@@ -40,21 +43,20 @@ class BenchmarkSource(object):
                 dt=stock_dividends[0]["ex_date"]
             )
 
-        benchmark_asset = self.env.asset_finder.retrieve_asset(sid)
-        if benchmark_asset.start_date > self.trading_days[0]:
+        if self.benchmark_asset.start_date > self.trading_days[0]:
             # the asset started trading after the first simulation day
             raise BenchmarkAssetNotAvailableTooEarly(
                 sid=str(self.benchmark_sid),
                 dt=self.trading_days[0],
-                start_dt=benchmark_asset.start_date
+                start_dt=self.benchmark_asset.start_date
             )
 
-        if benchmark_asset.end_date < self.trading_days[-1]:
+        if self.benchmark_asset.end_date < self.trading_days[-1]:
             # the asset stopped trading before the last simulation day
             raise BenchmarkAssetNotAvailableTooLate(
                 sid=str(self.benchmark_sid),
                 dt=self.trading_days[0],
-                end_dt=benchmark_asset.end_date
+                end_dt=self.benchmark_asset.end_date
             )
 
     def _initialize_precalculated_series(self, sid, env, trading_days,
@@ -113,7 +115,7 @@ class BenchmarkSource(object):
             trading_day_before_sim_start = \
                 env.previous_trading_day(trading_days[0])
 
-            if benchmark_asset.start_date > trading_day_before_sim_start:
+            if self.benchmark_asset.start_date > trading_day_before_sim_start:
                 # we can't go back one day before sim start, because the asset
                 # didn't start trading until the same day as the sim start.
                 # instead, we'll use the first available minute value of the
