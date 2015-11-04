@@ -115,7 +115,6 @@ class PerformanceTracker(object):
         self.position_tracker = PositionTracker(asset_finder=env.asset_finder,
                                                 data_portal=data_portal)
 
-        import pdb; pdb.set_trace()
         if self.emission_rate == 'daily':
             self.all_benchmark_returns = pd.Series(
                 index=self.trading_days)
@@ -125,8 +124,6 @@ class PerformanceTracker(object):
             self.all_benchmark_returns = pd.Series(index=pd.date_range(
                 self.sim_params.first_open, self.sim_params.last_close,
                 freq='Min'))
-
-            import pdb; pdb.set_trace()
 
             self.cumulative_risk_metrics = \
                 risk.RiskMetricsCumulative(self.sim_params, self.env,
@@ -404,8 +401,6 @@ class PerformanceTracker(object):
         Function called after handle_data when running with daily emission
         rate.
         """
-        import pdb; pdb.set_trace()
-
         completed_date = normalize_date(dt)
 
         self.position_tracker.sync_last_sale_prices(completed_date)
