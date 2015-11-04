@@ -26,8 +26,12 @@ class BenchmarkSource(object):
                 self.data_portal
             )
 
-    def get_value(self, dt):
+    def get_daily_value(self, dt):
         return self.precalculated_series.loc[dt]
+
+    def get_minute_value(self, dt):
+        raise NotImplementedError("Default benchmark source doesn't handle"
+                                  "minutely benchmark.")
 
     def _validate_benchmark(self):
         # check if this security has a stock dividend.  if so, raise an
