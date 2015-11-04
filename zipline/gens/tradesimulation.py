@@ -159,17 +159,23 @@ class AlgorithmSimulator(object):
                 elif action == CALC_DAILY_PERFORMANCE:
                     perf_tracker_benchmark_returns[dt] = \
                         self.benchmark_source.get_daily_value(dt)
-                    yield self.get_daily_message(dt, algo, perf_tracker)
+                    yield self._get_daily_message(dt, algo, perf_tracker)
                 elif action == CALC_MINUTE_PERFORMANCE:
                     perf_tracker_benchmark_returns[dt] = \
                         self.benchmark_source.get_minute_value(dt)
-                    yield self.get_minute_message(dt, algo, perf_tracker)
+                    minute_msg, daily_msg = \
+                        self._get_minute_message(dt, algo, perf_tracker)
+
+                    yield minute_msg
+
+                    if daily_msg:
+                        yield daily_msg
 
         risk_message = perf_tracker.handle_simulation_end()
         yield risk_message
 
     @staticmethod
-    def get_daily_message(dt, algo, perf_tracker):
+    def _get_daily_message(dt, algo, perf_tracker):
         """
         Get a perf message for the given datetime.
         """
@@ -178,13 +184,18 @@ class AlgorithmSimulator(object):
         return perf_message
 
     @staticmethod
-    def get_minute_message(dt, algo, perf_tracker):
+    def _get_minute_message(dt, algo, perf_tracker):
         """
         Get a perf message for the given datetime.
         """
-        minute_message = perf_tracker.handle_minute_close(dt)
-        minute_message['minute_perf']['recorded_vars'] = algo.recorded_vars
+        rvars = algo.recorded_vars
 
-        return minute_message
+        minute_message, daily_message = perf_tracker.handle_minute_close(dt)
+        minute_message['minute_perf']['recorded_vars'] = rvars
+
+        if daily_message:
+            daily_message["daily_perf"]["recorded_vars"] = rvars
+
+        return minute_message, daily_message
 
 

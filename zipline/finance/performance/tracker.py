@@ -394,7 +394,14 @@ class PerformanceTracker(object):
                                       todays_stats,
                                       emission_type='minute')
 
-        return minute_packet
+        if dt == self.market_close:
+            # if this is the last minute of the day, we also want to
+            # emit a daily packet.
+            return minute_packet, self._handle_market_close(todays_date,
+                                                            pos_stats,
+                                                            todays_stats)
+        else:
+            return minute_packet, None
 
     def handle_market_close_daily(self, dt):
         """
@@ -403,7 +410,8 @@ class PerformanceTracker(object):
         """
         completed_date = normalize_date(dt)
 
-        self.position_tracker.sync_last_sale_prices(completed_date)
+        self.position_tracker.sync_last_sale_prices(dt)
+
         pos_stats = self.position_tracker.stats()
         todays_stats = self.todays_performance.stats(
             self.position_tracker.positions, pos_stats)
