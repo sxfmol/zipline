@@ -746,30 +746,38 @@ class AssetFinderCachedEquities(AssetFinder):
         company_symbol, share_class_symbol, fuzzy_symbol = \
             split_delimited_symbol(symbol)
         if as_of_date is not None:
+            as_of_date = pd.Timestamp(normalize_date(as_of_date))
             ad_value = as_of_date.vlaue
 
             if fuzzy:
+                # Search for all exact matches on the fuzzy column satisfying
+                #  the date constraint
                 if fuzzy_symbol in self.fuzzy_symbol_hashed_equities:
                     equities = self.fuzzy_symbol_hashed_equities[fuzzy_symbol]
                     fuzzy_candidates = []
                     for equity in equities:
-                        if equity.start_date.value <= ad_value <= \
-                                equity.end_date.value:
+                        if (equity.start_date.value <=
+                                ad_value <=
+                                equity.end_date.value):
                             fuzzy_candidates.append(equity)
+                    # If exactly one equity exists for fuzzy_symbol,
+                    # return that equity
                     if len(fuzzy_candidates) == 1:
                         return fuzzy_candidates[0]
-
+            # Search for exact matches of the split-up company_symbol and
+            # share_class_symbol satisfying the date constraint
             if (company_symbol, share_class_symbol) in \
                     self.company_share_class_hashed_equities:
                 equities = self.company_share_class_hashed_equities[(
                     company_symbol, share_class_symbol)]
                 best_candidates = []
-                # Find all valid matches
                 for equity in equities:
-                    if equity.start_date.value <= ad_value <= \
-                            equity.end_date.value:
+                    if (equity.start_date.value <=
+                            ad_value <=
+                            equity.end_date.value):
                         best_candidates.append(equity)
-                # There are multiple valid matches
+                # Sort all valid matches and select the one with the latest
+                # start_date with end_date as a tie-breaker
                 if best_candidates:
                     best_candidates = sorted(
                         best_candidates,
@@ -778,6 +786,8 @@ class AssetFinderCachedEquities(AssetFinder):
                     )
                     return best_candidates[0]
                 else:
+                    # If no equity exists for symbol, return equity with the
+                    # highest-but-not-over end_date
                     partial_candidates = []
                     for equity in equities:
                         if equity.start_date.value <= ad_value:
