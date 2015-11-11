@@ -28,7 +28,6 @@ import pandas as pd
 from pandas.tseries.tools import normalize_date
 from pandas.util.testing import assert_frame_equal
 
-from nose_parameterized import parameterized
 from numpy import full
 
 from zipline.assets import (
@@ -38,7 +37,12 @@ from zipline.assets import (
     AssetFinder,
     AssetFinderCachedEquities
 )
-from zipline.assets.futures import FutureChain
+
+from zipline.assets.futures import (
+    cme_code_to_month,
+    FutureChain,
+    month_to_cme_code
+)
 from zipline.errors import (
     SymbolNotFound,
     MultipleSymbolsFound,
