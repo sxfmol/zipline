@@ -691,20 +691,26 @@ class AssetFinderCachedEquities(AssetFinder):
         self.fuzzy_symbol_hashed_equities = {}
         self.company_share_class_hashed_equities = {}
         self.hashed_equities = sa.select(self.equities.c).execute().fetchall()
-        self.load_company_share_class_hashed_equities()
-        self.load_fuzzy_symbol_hashed_equities()
+        self.load_hashed_equities()
 
-    def load_fuzzy_symbol_hashed_equities(self):
+    def load_hashed_equities(self):
         """
-        Populates map of fuzzy symbol to a list of equities that have that
-        fuzzy symbol.
+        Populates two maps - fuzzy symbol to list of equities having that
+        fuzzy symbol and company symbol/share class symbol to list of
+        equities having that combination of company symbol/share class symbol.
         """
         for equity in self.hashed_equities:
+            company_symbol = equity['company_symbol']
+            share_class_symbol = equity['share_class_symbol']
             fuzzy_symbol = equity['fuzzy_symbol']
-            if fuzzy_symbol not in self.fuzzy_symbol_hashed_equities:
-                self.fuzzy_symbol_hashed_equities[fuzzy_symbol] = []
             asset = self.convert_row_to_equity(equity)
-            self.fuzzy_symbol_hashed_equities[fuzzy_symbol].append(asset)
+            self.company_share_class_hashed_equities.setdefault(
+                (company_symbol, share_class_symbol),
+                []
+            ).append(asset)
+            self.fuzzy_symbol_hashed_equities.setdefault(
+                fuzzy_symbol, []
+            ).append(asset)
 
     def convert_row_to_equity(self, equity):
         """
@@ -714,27 +720,6 @@ class AssetFinderCachedEquities(AssetFinder):
         _convert_asset_timestamp_fields(data)
         asset = Equity(**data)
         return asset
-
-    def load_company_share_class_hashed_equities(self):
-        """
-        Populates map of (company symbol, share class symbol) to a list of
-         equities that have that combination of (company symbol, share class
-         symbol).
-        """
-        for equity in self.hashed_equities:
-            company_symbol = equity['company_symbol']
-            share_class_symbol = equity['share_class_symbol']
-            if (company_symbol, share_class_symbol) not in \
-                    self.company_share_class_hashed_equities:
-                self.company_share_class_hashed_equities[(
-                    company_symbol,
-                    share_class_symbol
-                )] = []
-            asset = self.convert_row_to_equity(equity)
-            self.company_share_class_hashed_equities[(
-                company_symbol,
-                share_class_symbol
-            )].append(asset)
 
     def lookup_symbol(self, symbol, as_of_date, fuzzy=False):
         """
