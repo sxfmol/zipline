@@ -678,3 +678,139 @@ for _type in string_types:
 
 class NotAssetConvertible(ValueError):
     pass
+
+
+class AssetFinderCachedEquities(AssetFinder):
+    """
+    An extension to AssetFinder that loads all equities from equities table
+    into memory and overrides lookup_symbol, which looks the equities up in the
+    in-memory store.
+    """
+    def __init__(self, engine, allow_sid_assignment=True):
+        super(AssetFinderCachedEquities, self).__init__(engine,
+                                                        allow_sid_assignment)
+        self.fuzzy_symbol_hashed_equities = {}
+        self.company_share_class_hashed_equities = {}
+        self.hashed_equities = sa.select(self.equities.c).execute().fetchall()
+        self.load_company_share_class_hashed_equities()
+        self.load_fuzzy_symbol_hashed_equities()
+
+    def load_fuzzy_symbol_hashed_equities(self):
+        """
+        Populates map of fuzzy symbol to a list of equities that have that
+        fuzzy symbol.
+        """
+        for equity in self.hashed_equities:
+            fuzzy_symbol = equity['fuzzy_symbol']
+            if fuzzy_symbol not in self.fuzzy_symbol_hashed_equities:
+                self.fuzzy_symbol_hashed_equities[fuzzy_symbol] = []
+            asset = self.convert_row_to_equity(equity)
+            self.fuzzy_symbol_hashed_equities[fuzzy_symbol].append(asset)
+
+    def convert_row_to_equity(self, equity):
+        """
+        Converts a SQLAlchemy equity row to an Equity object.
+        """
+        data = dict(equity.items())
+        _convert_asset_timestamp_fields(data)
+        asset = Equity(**data)
+        return asset
+
+    def load_company_share_class_hashed_equities(self):
+        """
+        Populates map of (company symbol, share class symbol) to a list of
+         equities that have that combination of (company symbol, share class
+         symbol).
+        """
+        for equity in self.hashed_equities:
+            company_symbol = equity['company_symbol']
+            share_class_symbol = equity['share_class_symbol']
+            if (company_symbol, share_class_symbol) not in \
+                    self.company_share_class_hashed_equities:
+                self.company_share_class_hashed_equities[(
+                    company_symbol,
+                    share_class_symbol
+                )] = []
+            asset = self.convert_row_to_equity(equity)
+            self.company_share_class_hashed_equities[(
+                company_symbol,
+                share_class_symbol
+            )].append(asset)
+
+    def lookup_symbol(self, symbol, as_of_date, fuzzy=False):
+        """
+        Looks up the equity for the given symbol using the same logic as
+        AssetFinder.lookup_symbol except that equities are looked up in
+        memory instead of in the database.
+        """
+        company_symbol, share_class_symbol, fuzzy_symbol = \
+            split_delimited_symbol(symbol)
+        if as_of_date is not None:
+            ad_value = as_of_date.vlaue
+
+            if fuzzy:
+                if fuzzy_symbol in self.fuzzy_symbol_hashed_equities:
+                    equities = self.fuzzy_symbol_hashed_equities[fuzzy_symbol]
+                    fuzzy_candidates = []
+                    for equity in equities:
+                        if equity.start_date.value <= ad_value <= \
+                                equity.end_date.value:
+                            fuzzy_candidates.append(equity)
+                    if len(fuzzy_candidates) == 1:
+                        return fuzzy_candidates[0]
+
+            if (company_symbol, share_class_symbol) in \
+                    self.company_share_class_hashed_equities:
+                equities = self.company_share_class_hashed_equities[(
+                    company_symbol, share_class_symbol)]
+                best_candidates = []
+                # Find all valid matches
+                for equity in equities:
+                    if equity.start_date.value <= ad_value <= \
+                            equity.end_date.value:
+                        best_candidates.append(equity)
+                # There are multiple valid matches
+                if best_candidates:
+                    best_candidates = sorted(
+                        best_candidates,
+                        key=lambda x: (x.start_date, x.end_date),
+                        reverse=True
+                    )
+                    return best_candidates[0]
+                else:
+                    partial_candidates = []
+                    for equity in equities:
+                        if equity.start_date.value <= ad_value:
+                            partial_candidates.append(equity)
+                    if partial_candidates:
+                        partial_candidates = sorted(
+                            partial_candidates,
+                            key=lambda x: x.end_date,
+                            reverse=True
+                        )
+                        return partial_candidates[0]
+            raise SymbolNotFound(symbol=symbol)
+        else:
+            # If this is a fuzzy look-up, check if there is exactly one match
+            # for the fuzzy symbol
+            if fuzzy:
+                if fuzzy_symbol in self.fuzzy_symbol_hashed_equities:
+                    equities = self.fuzzy_symbol_hashed_equities[fuzzy_symbol]
+                    if len(equities) == 1:
+                        return equities[0]
+            if (company_symbol, share_class_symbol) in \
+                    self.company_share_class_hashed_equities:
+                equities = self.company_share_class_hashed_equities[(
+                    company_symbol, share_class_symbol)]
+                if len(equities) == 1:
+                    return equities[0]
+                else:
+                    raise MultipleSymbolsFound(
+                        symbol=symbol,
+                        options=list(map(
+                            self._retrieve_equity,
+                            [equity.sid for equity in equities],
+                        ))
+                    )
+            else:
+                raise SymbolNotFound(symbol=symbol)
