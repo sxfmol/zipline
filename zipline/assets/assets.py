@@ -686,9 +686,8 @@ class AssetFinderCachedEquities(AssetFinder):
     into memory and overrides lookup_symbol, which looks the equities up in the
     in-memory store.
     """
-    def __init__(self, engine, allow_sid_assignment=True):
-        super(AssetFinderCachedEquities, self).__init__(engine,
-                                                        allow_sid_assignment)
+    def __init__(self, engine):
+        super(AssetFinderCachedEquities, self).__init__(engine)
         self.fuzzy_symbol_hashed_equities = {}
         self.company_share_class_hashed_equities = {}
         self.hashed_equities = sa.select(self.equities.c).execute().fetchall()
@@ -747,7 +746,7 @@ class AssetFinderCachedEquities(AssetFinder):
             split_delimited_symbol(symbol)
         if as_of_date is not None:
             as_of_date = pd.Timestamp(normalize_date(as_of_date))
-            ad_value = as_of_date.vlaue
+            ad_value = as_of_date.value
 
             if fuzzy:
                 # Search for all exact matches on the fuzzy column satisfying
