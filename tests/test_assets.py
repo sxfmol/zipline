@@ -463,7 +463,8 @@ class AssetFinderTestCase(TestCase):
         """
         with build_lookup_generic_cases(self.asset_finder_type) as cases:
             for finder, symbols, reference_date, expected in cases:
-                results, missing = finder.lookup_generic(symbols, reference_date)
+                results, missing = finder.lookup_generic(symbols,
+                                                         reference_date)
                 self.assertEqual(results, expected)
                 self.assertEqual(missing, [])
 
